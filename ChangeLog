@@ -1,0 +1,53 @@
+0.7
+  - mulitple windows
+  - send [*] actions
+  - thru mode
+  - command: stdin
+  - command: fgcolor
+  - command: highlight
+
+0.6
+  - customvars option, which allows data to be retained by bosh for later by saving
+    in a $BOSHVAR1..$BOSHVARx variable
+  - $BOSHTITLE
+  - {{ }} blocks in configuration files
+
+0.5
+  - Changes made to action destination characters: '.' now overwrites current
+    buffer with action output. The old behaviour (where the action output goes
+    to a new buffer) is available with '>'.
+  - --shell option
+  - --header option
+  - BOSHPID/BOSHPPID variables
+  - man page
+
+0.4
+  - BOSHERR
+  - action parameters (BOSHPARAM)
+  - BOSHCONF
+  - \ allowing multi-line entries in configurations. (actually in 0.3 but
+    not documented)
+  - cursorsizemovement renamed to cursorsize
+  - multi-line cursor problems fix
+  - fixed ^P piping
+  - configure script
+
+0.3
+  - actions with output / destinations
+  - passing of command-line arguments to commands/configurations
+  - autorefresh setting
+  - cursorsize setting
+  - preaction setting
+  - multilineseperator setting
+  - view configuration (^V)
+
+0.2 / 0.02 (I got confused so it's called both)
+  - search (^W)
+  - row delete/insert (DEL/INS)
+  - pipe (^P)
+  - ability to be an interpreter from a shebang (#!)
+  - input from stdin
+  - proper piping and forking, rather than popening
+
+0.01
+  - first release

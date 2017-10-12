@@ -1,0 +1,42 @@
+for 0.7 release:
+- error handling for internal commands - if context is ui, log to an error console
+- view conf (was in 0.6 but needs to be kludged into 0.7)
+- make highlight work
+- search bugs
+- documentation
+- consisent nice way to handle internal command arguments
+- seperation of stderr/stdout / option to select how to handle stderr (eg fail on stderr)
+- fix child not getting killed when new action run! (bump)
+
+
+=========
+
+- multiple selection
+- postaction
+- destinations for ^P output.
+- terminal escape code parsing (to render colors)
+- selection skips between lines only that match a regex
+- auto actions, so after an action completes, it automatically runs another one, say with the next line of the buffer
+  - auto action that runs on selected line automatically
+- advance action [>] auto deletes when action terminates
+- edit mode
+- pipe preserved across autorefresh/refresh
+- --highlight option with a regex or a number for highlighting every nth line
+- use fifos for bash -> bosh communication
+- every option available to be set in command/actions: eg bosh_refresh sets refresh
+- headers based on regex or something for dynamic number of lines
+
+- option for table-based output, rather than just line based.
+- wchar support
+- use ncurses windows
+
+
+- free memory
+
+BUGS:
+
+- --header problem (cursor positioned in header)
+- F6 not working
+- some /tmp files getting left
+- varfiles not getting created on inter-window actions
+- scrolling down on windows, where height is less than the max

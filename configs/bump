@@ -1,0 +1,198 @@
+#!/usr/bin/env bosh
+
+refresh=1
+
+# uservars: 
+# 1 = path
+# 2 = flags
+uservars=2
+
+stderr=exit
+
+window=0,0,0,%50,0
+window=1,%51,0,%50,%50
+window=2,%51,%51,%50,%50
+
+common{{
+
+  function bump_ls {
+    BOSHVAR1="$PWD"
+
+    # cd mode
+    if ( bump_flag_set "c" )
+    then
+      buf=$( (echo n; echo n) | abcde -a cddb,clean 2> /dev/null )
+      BOSHTITLE="CD: $( echo "$buf" | grep '^----' | sed 's/----//g' )"
+      echo -n "$buf" | grep '^[[:digit:]]'
+      return 0
+    fi
+
+    # play file
+    if ( bump_flag_set "r" )
+    then
+      # recursive list of files
+      find | cut -b3-
+    else
+      # normal listing
+      ( [ "$BOSHVAR1" = "/" ] || echo '..'; ls -p1 | grep '/' | tr -d '/') | sed 's/^/[/' | sed 's/$/]/'
+      ls -p1 | grep -v '/'
+    fi
+    BOSHTITLE="$BOSHVAR1"
+  }
+
+  function bump_flag_set {
+    echo $BOSHVAR2 | grep -q "$1"
+  }
+
+  function bump_flag_toggle {
+    if ( bosh_flag_set "$1" )
+    then
+      BOSHVAR2="${BOSHVAR2/$1//}"
+    else
+      BOSHVAR2="$BOSHVAR2$1"
+    fi
+  }
+
+}}
+
+
+### WINDOW 0: Directory/file view #################################################################
+
+focus=0
+
+command{{
+  MUSICDIR="/share/music"
+  if [ -z "$BOSHVAR1" ]
+  then
+    if [ -n "$1" ]
+    then
+      if [ -d "$1" ]  
+      then
+        BOSHVAR1="$1"
+      elif [ -f "$1" ]
+      then
+        BOSHERR="bof: directory '$1' does not exist"
+        return 1
+      fi
+    else
+      BOSHVAR1="$MUSICDIR"
+    fi
+  fi
+  cd "$BOSHVAR1"
+  bump_ls
+}}
+
+# Pre-action
+preaction{{
+  [ "$BOSHVAR1" = "/" ] && BOSHVAR1=""
+  f="$BOSHVAR1/$(echo $BOSH | tr -d '[]')"
+}}
+
+# Actions:
+
+# chdir
+c[.]{{
+  [ -d "$f" ] &&  BOSHVAR1="$f"
+  cd "$BOSHVAR1"
+  bump_ls
+}}
+
+# home
+h[.]{{
+  cd
+  bump_ls
+}}
+
+# back
+b[.]{{
+  cd $OLDPWD
+  bump_ls
+}}
+
+# prompt for dir
+d[.:dir]{{
+  cd "$BOSHPARAM"
+  bump_ls
+}}
+
+# play
+p[2]{{
+  if ( bump_flag_set "c" )
+  then
+    mplayer "cdda://$(echo $BOSH | cut -f1 -d:)"
+  elif [ -d "$f" ]
+  then
+    cd "$f"
+    find -print0 | xargs -0 mplayer
+    cd -
+  else
+    mplayer "$f"
+  fi
+}}
+
+# play all
+a[2]{{
+  if [ -d "$f" ]
+  then
+    cd "$f"
+    find -print0 | xargs -0 mplayer
+    cd -
+  else
+    mplayer "$f"
+  fi
+  bosh_write 'cursordown'
+}}
+
+
+.space=[2~] 
+
+
+# what was this for?  repeat setting?
+r{{
+  cd "$BOSHVAR1"
+  bump_ls
+}}
+
+t{{
+  bump_flag_toggle c
+}}
+
+
+# start jackd
+j=jackd -R -d alsa &
+
+
+
+### WINDOW 1: Playlist ############################################################################
+
+focus=1
+
+command{{
+  if [ -z "$BOSHVAR2" ]
+  then
+    if [ -n "$1" ]
+    then
+      if [ -f "$1" ]
+      then
+        BOSHVAR2="$1"
+      elif [ ! -d "$1" ]
+      then
+        BOSHERR="bof: file '$1' does not exist"
+        return 1
+      fi
+    fi
+  fi
+  if [ -n "$BOSHVAR2" ]
+  then
+    cat "$BOSHVAR2" | grep -v '^#EXT'
+  fi
+}}
+
+
+### WINDOW 2: mplayer #############################################################################
+
+focus=2
+
+### DONE ##########################################################################################
+
+focus=0

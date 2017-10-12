@@ -1,0 +1,109 @@
+#!/usr/bin/env bosh
+
+#
+# Simple bosh file browser
+#
+# Keys:
+#
+# c - change to selected directory
+# h - home directory
+# u - up a directory
+# m - view file
+# e - edit file in $EDITOR (falls back to vi)
+# s - stat file
+# o - open with gnome-open
+
+refresh=1
+uservars=1
+
+common{{
+  function bof_ls {
+    LS="ls -p1"
+    BOSHVAR1="$PWD"
+    ( [ "$BOSHVAR1" = "/" ] || echo '..'; $LS | grep '/' | tr -d '/') | sed 's/^/[/' | sed 's/$/]/'
+    $LS | grep -v '/'
+    BOSHTITLE="$BOSHVAR1"
+  }
+}}
+
+# Main command
+command{{
+  if [ -z "$BOSHVAR1" ]
+  then
+    if [ -n "$1" ]
+    then
+      if [ -d "$1" ]  
+      then
+        BOSHVAR1="$1"
+      else
+        BOSHERR="bof: directory '$1' does not exist"
+        return 1
+      fi
+    else
+      BOSHVAR1="."
+    fi
+  fi
+  cd "$BOSHVAR1"
+  bof_ls
+}}
+
+# Pre-action
+preaction{{
+  [ "$BOSHVAR1" = "/" ] && BOSHVAR1=""
+  f="$BOSHVAR1/$(echo $BOSH | tr -d '[]')"
+}}
+
+
+# Actions:
+
+# chdir
+c[.]{{
+  if [ -d "$f" ]
+  then
+    BOSHVAR1="$f"
+  fi
+  cd "$BOSHVAR1"
+  bof_ls
+}}
+
+# cd ..
+u[.]{{
+  cd ..
+  bof_ls
+}}
+
+# home
+h[.]{{
+  cd
+  bof_ls
+}}
+
+# more
+m[>]{{
+  cat "$f"
+  BOSHTITLE="$f"
+}}
+
+# edit
+e[!]{{
+  [ -z "$EDITOR" ] && EDITOR=vi
+  "$EDITOR" "$f"
+}}
+
+# stat
+s[>]{{
+  stat "$f"
+  BOSHTITLE="$f"
+}}
+
+o[ ]{{
+  gnome-open "$f"
+}}
+
+x[|.:pattern]{{
+  grep "$BOSHPARAM"
+}}
+
+r[|.]{{
+  tac
+}}

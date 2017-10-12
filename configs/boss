@@ -1,0 +1,51 @@
+#!/usr/bin/env bosh
+
+# $Id
+
+command=
+function padecho() {                                                                                    \
+  s="$1"                                                                                                \
+  while [ ${#s} -lt "$2" ]; do s="$s "; done                                                            \
+  echo -n "$s"                                                                                          \
+}                                                                                                       \
+padecho SERVICE 40                                                                                      \
+padecho STATUS 20                                                                                       \
+echo AVAILABLE COMMANDS                                                                                 \
+echo                                                                                                    \
+for x in $(ls /etc/init.d)                                                                              \
+do                                                                                                      \
+  X="/etc/init.d/$x"                                                                                    \
+  [ -x $X ] || continue                                                                                 \
+  padecho $x 40                                                                                         \
+  available=$(cat $X | grep '^  ' | grep ')$' | tr -d '\n)*"' | tr '|' ' ' | cut -f1 -d'#')             \
+  if ( echo $available | grep -q status )                                                               \
+  then                                                                                                  \
+    status="$($X status)"                                                                               \
+    if ( echo $status | grep -q 'not running' )                                                         \
+    then                                                                                                \
+      padecho "not running" 20                                                                          \
+    elif ( echo $status | grep -q 'running' )                                                           \
+    then                                                                                                \
+      padecho "running" 20                                                                              \
+    else                                                                                                \
+      padecho " " 20                                                                                    \
+    fi                                                                                                  \
+  else                                                                                                  \
+    padecho " " 20                                                                                      \
+  fi                                                                                                    \
+  echo -n $(echo $available | tr ' ' '\n' | grep 'start\|restart\|stop\|reload\|reset' | sed 's/  / /') \
+  echo                                                                                                  \
+done
+
+
+refresh=1
+preaction=
+  x=/etc/init.d/$(echo $BOSH | cut -f1 -d' ')
+
+s=[!] $x start
+r=[!] $x restart
+t=[!] $x stop
+l=[!] $x reload
+f=[!] $x force-reload
+e=[!] $x reset
+c=[!:command] $x "$BOSHPARAM"

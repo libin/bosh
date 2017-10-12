@@ -1,0 +1,24 @@
+INSTALL:
+  ./configure
+  make
+  make install (as root)
+
+
+USAGE:
+Instructions of how to use bosh are now all in the man page.
+
+CONFIGS
+Included are three example configs in the configs subdirectory -
+
+  - bops, an interface for ps allowing actions to be killed etc.
+
+  - boss, a very slow interface for managing services in /etc/init.d
+
+  - bof, a crude file browser - press c to change to directory, m to
+    view a file, and e to edit the file.
+
+
+BUGS
+please tell me! (alexsisson@gmail.com). Put bosh in the subject.
+
+    

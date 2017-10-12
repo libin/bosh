@@ -1,0 +1,46 @@
+#!/usr/bin/env bosh
+
+command{{
+  function pad() {
+    s="$1";
+    while [ ${#s} -lt 5 ]; do s=" $s"; done;
+    echo "$s";
+  };
+  PID="$(pad $$)";
+  BOSHPID="$(pad $BOSHPID)";
+  BOSHPPID=$(pad $BOSHPPID);
+  ps x -o pid,ppid,tty,stat,time,command | grep -v -e "$PID" -e "$BOSHPID" -e "$BOSHPPID"
+}}
+
+refresh=1
+header=1
+
+#autorefresh:	5
+
+preaction{{
+  PID=$(echo $BOSH | cut -f1 -d' ');
+}}
+
+k[!]=		kill $PID
+9[!]=		kill -9 $PID
+s[!:signal]=	kill -s "$BOSHPARAM" $PID
+
+l[>] {{
+  lsof -p $PID
+  BOSHTITLE="lsof $PID"
+}}
+
+m[>] {{
+  pmap $PID
+  BOSHTITLE="pmap $PID"
+}}
+
+r[>] {{
+  chrt -p $PID
+  BOSHTITLE="chrt $PID"
+}}
+
+t[>] {{
+  pstack $PID
+  BOSHTITLE="pstack $PID"
+}}

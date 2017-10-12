@@ -1,0 +1,394 @@
+.\"bosh man page
+.\"(C) Alex Sisson, 2008-2009
+.TH bosh 1 "18-MAR-2008" bosh-0.6
+.SH NAME
+.B bosh \- Browsable Output SHell
+.SH SYNOPSIS
+.B bosh
+.I [OPTIONS] [CONFIGURATION] [CONFIGURATION OPTIONS]
+.PP
+.SH DESCRIPTION
+.PP
+.B bosh
+takes the output of a program or script and provides a curses interface to browse that output. A particular
+line of that output can be selected and actions can be defined and executed and make use of the that selected line.
+.SH USAGE
+CONFIGURATION is the name of a bosh configuration file (see below), in which
+case that is loaded.
+
+If CONFIGURATION is absent, and bosh is invoked on the end of a pipe, it will read
+from stdin.
+
+Bosh now supports passing arguments to the CONFIGURATION. The arguments will be available
+in the standard way ($1...$9,$*,$@,etc).
+
+Bosh can be invoked as above, or as "intepreter", meaning it can invoked from
+a shebang (#!) line at the top of a script. This script would just be a bosh
+configuration file. See
+.B bops
+as an example, which should have come with
+.B bosh.
+
+.SH OPTIONS
+.TP
+.B \-h / \-\-help
+show help and exit
+.TP
+.B \-v / \-\-version
+show version and exit
+.TP
+.B \-\-autorefresh=\fIN\fP
+Automatically re-run command every N seconds.
+.TP
+.B \-\-cursorsize=\fIN\fP
+Set the cursor to N lines high.
+.TP
+.B \-\-cursormovement=\fIN\fP
+Set how much the cursor moves one an up/down keypress.
+.TP
+.B \-\-header=\fI[N]\fP
+Prevent the cursor from entering the first N rows of the output.
+.TP
+.B \-\-multilineseperator=\fISTRING\fP
+When an action is invoked and the cursor is multi-line, the lines selected will be concatenated together.
+With this setting a seperating string can be specified to be inserted between the lines.
+.TP
+.B \-\-preaction=\fICOMMANDS\fP
+A command or commands that will be run on the invokation of all actions, before the action is run.
+This allows code that is a common for the actions to be only defined once. Preactions are simply prefixed onto the action
+when the action is invoked. This means you will need to include a seperating character (eg ;) at the end of preaction.
+.TP
+.B \-\-refresh=\fI[0,1]\fP
+A value of 1 means that bosh will re-run the command after an action is perfromed.
+.TP
+.B \-\-uservars=\fIN\fP
+Set the number of user variables ( of the form
+.B $BOSHVARx
+) available. See the
+.B USER VARIABLES
+section below.
+
+
+.SH CONFIGURATION FILES
+
+Bosh configs are fairly simple. Firstly you need a line which tells bosh the
+actual program to execute to show it it's buffer \-
+
+.RS
+.B command=ps x
+.RE
+
+It could also be a chain of commands (bash) \-
+
+.RS
+.B command=for i in *; do echo $i; done
+.RE
+
+Or it can spread it over multiple lines for readablity with a \\ (must be at the end of line!) \-
+
+.RS
+.B
+command=for i in * \\
+.HP
+.B
+do \\
+.HP
+.B
+echo $i \\
+.HP
+.B
+done
+.RE
+
+Or now even better, bosh supports blocks delimited by {{ and }} \-
+.RS
+.B
+command{{
+.HP
+.B
+for i in *
+.HP
+.B
+do
+.HP
+.B
+echo $i
+.HP
+.B
+done
+.HP
+.B
+}}
+.RE
+
+These can be used with all options and actions.
+
+Command line arguments given to bosh after the COMMAND parameter are available
+and can be used as follows \-
+
+.RS
+.B command=ps $*
+.RE
+
+This would allow the user to specify the format of ps when invoking bosh.
+
+Commands can also set
+.B BOSHERR.
+When execution of the command finishes, bosh
+will exit and display the value of
+.B BOSHERR
+if it has been set. 
+
+.RS
+.B
+command=if [ \-z "$1" ] \\
+.HP
+.B
+then \\
+.HP
+.B
+  BOSHERR="usage: $BOSHCONF [SECTION] NAME" \\
+.HP
+.B
+  return 1 \\
+.HP
+.B
+fi \\
+.HP
+.B
+man $*
+.RE
+
+This will mean bosh exits immediately if no arguments are passed on the
+command line. Note the use of
+.B return
+rather than
+.B exit.
+
+After the command option, you can specify any of the options specified above in the
+.B OPTIONS
+section, but without the \-\- prefix \-
+
+.RS
+.B header=4
+.P
+.B refresh=1
+.RE
+
+
+.SH ACTIONS
+Basic actions are defined as \-
+
+.RS
+.B KEY=command
+.RE
+
+eg:
+
+.RS
+.B k=kill $(echo $BOSH | cut \-f1 \-d' ')
+.P
+.B 9=kill \-9 $(echo $BOSH | cut \-f1 \-d' ')
+.RE
+
+Or, using the preaction setting (see above) \-
+
+.RS
+.B preaction=PID=$(echo $BOSH | cut \-f1 \-d' ');
+.P
+.B k=kill $PID
+.P
+.B 9=kill \-9 $PID
+.RE
+
+The keys available are a-z,0-9 and enter. Bosh keys are not case sensitive,
+so A= is the same as a=.
+
+.B $BOSH
+is an environment variable containing the currently selected line(s)
+in bosh. It is set when the action key is invoked. This is how information
+is passed to the actions. In the example above, the PID is extracted from the
+currently selected line of the ps output using cut, which can then be passed
+to the kill command.
+
+.SS ACTIONS WITH OUTPUT
+For basic actions such as kill, which has no output to stdout, the above
+definition is sufficient. However, bosh can now intercept the output of actions
+and place that in the bosh window. These are defined as follows \-
+
+.RS
+.B KEY=[.]command
+.RE
+Or,
+
+eg:
+
+.RS
+.B l=[.]/usr/sbin/lsof \-p $PID
+.RE
+
+Assuming the preaction is used above, this action will use lsof to show in
+bosh a list of files that process $PID has open. In this situation, the output
+of the original command is lost, and replaced with the output of the action.
+
+Alternatively an action can be defined \-
+.RS
+.B KEY=[>]command
+.RE
+
+In this situation, bosh is like a web browser, in that this output (lsof) will not
+override the current buffer, but create a new buffer \- You can get then move back and forward
+through these buffers with the left and right arrow keys. At this stage, actions are only available
+in the original buffer.
+
+The other possibility is that an action may be required that has output that isn't to be shown
+in the bosh window, such as other curses-based applications. So the following syntax will make
+bosh end curses mode when this action is invoked.
+
+.RS
+.B KEY=[!]command
+.RE
+
+eg: If the bosh window contained a list of files, an action like this could be
+used to load that file in pico.
+
+.RS
+.B e=[!]pico "$BOSH"
+.RE
+
+.SS ACTION PARAMETERS
+Actions can now have a prompt for user input before performing the action.
+The value is available to the action using the
+.B $BOSHPARAM
+variable.
+
+eg: Using the ps example above, with PID preaction \-
+
+.RS
+.B s=[!:signal] kill \-s "$BOSHPARAM" $PID
+.RE
+
+When this action is called,
+.B bosh
+will ask for user input with the prompt
+.B "signal: ".
+Once this has been entered, the action will run.
+
+
+
+.SH BOSH* VARIABLES:
+In addtion to
+.B $BOSH
+,
+.B $BOSHPARAM
+and
+.B $BOSHERR
+(all explained above), the following variables available to actions \-
+
+.TP
+.B $BOSHPID
+Process ID of bosh itself
+.TP
+.B $BOSHPPID
+Parent process ID of bosh (eg: the shell you ran bosh from)
+
+.SS USER VARIABLES
+User variables are variables to be set and used by commands and actions. They are of the form
+.B $BOSHVARx.
+When the command or action
+is run and sets a user variable, bosh will store the contents when that command or action has finised.
+This allows the values to be used by subsequent actions. To make use of these, you must first set the
+.B uservars
+to the number you need (eg: uservars=1 will give you BOSHVAR1, uservars=10 will give you
+BOSHVAR1 thru BOSHVAR10).
+
+.SH SHELLS
+Currently bosh only supports bash as the shell that it spawns for executing the commands and actions.
+Support for other shells and languages will hopefully be included in the future.
+
+.SH EXAMPLE CONFIGURATION:
+Included with bosh should be a simple configuration named bops. It uses ps as the main command,
+and allows you to kill the selected process or view its open files (using lsof). This is where
+the above examples are taken from. The original inspiration for bosh was being able to kill
+processes easily in this manner.
+
+To run bops, type \-
+
+.RS
+.B $ ./bops
+.RE
+
+This invokes bosh through the shebang at the top (assuming the path is set correctly).
+
+Or to run it the traditional way \-
+
+.RS
+.B $ ./bosh ./bops
+.RE
+
+.SH KEYS
+
+.TP
+.B UP/DOWN
+cursor up/down
+.TP
+.B LEFT/RIGHT
+buffer forward/back
+.TP
+.B ^L
+refresh screen
+.TP
+.B ^O
+run new command
+.TP
+.B ^P
+pipe buffer through a command, with the output of that pipe will become the buffer
+.TP
+.B ^R
+refresh program output (re-run the command)
+.TP
+.B ^V
+show the current configuration
+.TP
+.B ^W
+search
+.TP
+.B ^N
+repeat search
+.TP
+.B ^X
+exit
+.TP
+.B F3
+same as ^W
+.TP
+.B F4
+same as ^N
+.TP
+.B F5
+same as ^R
+.TP
+.B F6
+reload configuration
+.TP
+.B F12
+same as ^L
+.TP
+.B |
+same as ^P
+
+.SH STATUS BAR
+The status bar shows information about the current configuration. First is the currently
+selected line number/total lines. Then the status of the child process: It will show either
+.B running
+or
+.B exit:
+with the exit code of the child (or the signal which terminated it). Next an R indicates that
+bosh is running with the refresh option activated. Lastly a countdown will be shown if the
+autorefresh option is set.
+
+.SH AUTHOR
+Alex Sisson (alexsisson@gmail.com)
+
+.SH HOMEPAGE
+Check for updates at http://bosh.sourceforge.net
